@@ -1,6 +1,7 @@
 from python:3.12-bookworm
 
-ENV GOOGLE_API_KEY=""
+ENV GOOGLE_API_KEY="AIzaSyCAY6BQJAqaxaCs5HOTwdYhtA0wvhoA3BI"
+ENV OPEN_API_KEY="nothing"
 
 RUN git config --global user.email "devin@opendevin.com"
 RUN git config --global user.name "Devin Abierto"
