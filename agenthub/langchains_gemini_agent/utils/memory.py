@@ -24,16 +24,20 @@ class LongTermMemory:
         self.thought_idx = 0
 
     def add_event(self, event):
+        print("adding event to long term memory")
         doc = Document(
             text=json.dumps(event),
-            doc_id=self.thought_idx,
+            doc_id=str(self.thought_idx),
             extra_info={
-                "type": event.action,
+                "type": event["action"],
                 "idx": self.thought_idx,
             },
         )
+        print("doc created")
         self.thought_idx += 1
+        print("inserting doc...")
         self.index.insert(doc)
+        print("doc inserted")
 
     def search(self, query, k=10):
         retriever = VectorIndexRetriever(

@@ -10,6 +10,10 @@ if os.getenv("DEBUG"):
 from typing import List
 from langchain_core.pydantic_v1 import BaseModel
 
+from opendevin.observation import (
+    CmdOutputObservation,
+)
+
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -90,13 +94,13 @@ You can also use the same action and args from the source monologue.
 """
 
 
-class Action(BaseModel):
+class _ActionDict(BaseModel):
     action: str
     args: dict
 
 
 class NewMonologue(BaseModel):
-    new_monologue: List[Action]
+    new_monologue: List[_ActionDict]
 
 
 def get_chain(template, model_name):
@@ -111,37 +115,45 @@ def get_chain(template, model_name):
     return llm_chain
 
 
-def summarize_monologue(thoughts, model_name):
+def summarize_monologue(thoughts: List[dict], model_name):
     llm_chain = get_chain(MONOLOGUE_SUMMARY_PROMPT, model_name)
     parser = JsonOutputParser(pydantic_object=NewMonologue)
     resp = llm_chain.invoke({"monologue": json.dumps({"old_monologue": thoughts})})
+
     if os.getenv("DEBUG"):
         print("resp", resp)
     parsed = parser.parse(resp["text"])
     return parsed["new_monologue"]
 
 
-def request_action(task, thoughts, model_name, background_commands=[]):
+def request_action(
+    task,
+    thoughts: List[dict],
+    model_name: str,
+    background_commands_obs: List[CmdOutputObservation] = [],
+):
     llm_chain = get_chain(ACTION_PROMPT, model_name)
-    parser = JsonOutputParser(pydantic_object=Action)
+    parser = JsonOutputParser(pydantic_object=_ActionDict)
     hint = ""
     if len(thoughts) > 0:
         latest_thought = thoughts[-1]
-        if latest_thought.action == "think":
-            if latest_thought.args["thought"].startswith("OK so my task is"):
+        if latest_thought["action"] == "think":
+            if latest_thought["args"]["thought"].startswith("OK so my task is"):
                 hint = "You're just getting started! What should you do first?"
             else:
                 hint = (
                     "You've been thinking a lot lately. Maybe it's time to take action?"
                 )
-        elif latest_thought.action == "error":
+        elif latest_thought["action"] == "error":
             hint = "Looks like that last command failed. Maybe you need to fix it, or try something else."
 
     bg_commands_message = ""
-    if len(background_commands) > 0:
+    if len(background_commands_obs) > 0:
         bg_commands_message = "The following commands are running in the background:"
-        for id, command in background_commands.items():
-            bg_commands_message += f"\n`{id}`: {command.command}"
+        for command_obs in background_commands_obs:
+            bg_commands_message += (
+                f"\n`{command_obs.command_id}`: {command_obs.command}"
+            )
         bg_commands_message += "\nYou can end any process by sending a `kill` action with the numerical `id` above."
 
     latest_thought = thoughts[-1]
