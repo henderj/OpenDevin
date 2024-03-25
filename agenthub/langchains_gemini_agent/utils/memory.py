@@ -15,9 +15,7 @@ class LongTermMemory:
         db = chromadb.Client()
         self.collection = db.get_or_create_collection(name="memories")
         vector_store = ChromaVectorStore(chroma_collection=self.collection)
-        embed_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001", google_api_key=os.getenv("GOOGLE_API_KEY")
-        )
+        embed_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
         self.index = VectorStoreIndex.from_vector_store(
             vector_store, embed_model=embed_model
         )
